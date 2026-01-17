@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory Card Game 🎮</title>
+    <style>
+        /* ========== BASIC RESET & BODY ========== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        /* ========== HEADER SECTION ========== */
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        /* ========== SCORE BOARD ========== */
+        .score-board {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 20px;
+        }
+
+        .score-item {
+            background: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .score-item span {
+            display: block;
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .score-item strong {
+            font-size: 1.8rem;
+            color: #764ba2;
+        }
+
+        /* ========== GAME BOARD ========== */
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(4, 100px);  /* 4 columns */
+            gap: 15px;
+            perspective: 1000px;  /* For 3D flip effect */
+        }
+
+        /* ========== INDIVIDUAL CARD ========== */
+        .card {
+            width: 100px;
+            height: 100px;
+            position: relative;
+            cursor: pointer;
+            transform-style: preserve-3d;  /* Keep 3D effect for children */
+            transition: transform 0.5s ease;  /* Smooth flip animation */
+        }
+
+        /* When card has 'flipped' class, rotate it */
+        .card.flipped {
+            transform: rotateY(180deg);
+        }
+
+        /* Front and Back of card - shared styles */
+        .card-front,
+        .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            backface-visibility: hidden;  /* Hide when rotated away */
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        /* Back of card (question mark side) */
+        .card-back {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            font-size: 2.5rem;
+        }
+
+        /* Front of card (emoji side) */
+        .card-front {
+            background: white;
+            font-size: 3rem;
+            transform: rotateY(180deg);  /* Start flipped so it shows when card flips */
+        }
+
+        /* When cards match, add glow effect */
+        .card.matched {
+            animation: matchPulse 0.5s ease;
+        }
+
+        .card.matched .card-front {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.6);
+        }
+
+        /* Pulse animation when matched */
+        @keyframes matchPulse {
+            0%, 100% { transform: rotateY(180deg) scale(1); }
+            50% { transform: rotateY(180deg) scale(1.1); }
+        }
+
+        /* Shake animation for wrong match */
+        .card.shake {
+            animation: shake 0.5s ease;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: rotateY(180deg) translateX(0); }
+            25% { transform: rotateY(180deg) translateX(-10px); }
+            75% { transform: rotateY(180deg) translateX(10px); }
+        }
+
+        /* ========== BUTTONS ========== */
+        .restart-btn {
+            margin-top: 25px;
+            padding: 15px 40px;
+            font-size: 1.1rem;
+            background: white;
+            color: #764ba2;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+
+        .restart-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
+        /* ========== WIN MESSAGE (MODAL) ========== */
+        .win-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .win-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .win-message {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            transform: scale(0.5);
+            transition: all 0.3s ease;
+        }
+
+        .win-overlay.active .win-message {
+            transform: scale(1);
+        }
+
+        .win-message h2 {
+            font-size: 2.5rem;
+            color: #764ba2;
+            margin-bottom: 15px;
+        }
+
+        .win-message p {
+            font-size: 1.2rem;
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        .win-message .stats {
+            font-size: 1rem;
+            color: #888;
+            margin-bottom: 20px;
+        }
+
+        .play-again-btn {
+            padding: 12px 30px;
+            font-size: 1rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        /* ========== RESPONSIVE ========== */
+        @media (max-width: 500px) {
+            .game-board {
+                grid-template-columns: repeat(4, 70px);
+                gap: 10px;
+            }
+            .card {
+                width: 70px;
+                height: 70px;
+            }
+            .card-front {
+                font-size: 2rem;
+            }
+            .card-back {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- ========== HEADER ========== -->
+    <div class="header">
+        <h1>🧠 Memory Game</h1>
+        <p>Find all matching pairs!</p>
+    </div>
+
+    <!-- ========== SCORE BOARD ========== -->
+    <div class="score-board">
+        <div class="score-item">
+            <span>Moves</span>
+            <strong id="moves">0</strong>
+        </div>
+        <div class="score-item">
+            <span>Matches</span>
+            <strong id="matches">0 / 8</strong>
+        </div>
+        <div class="score-item">
+            <span>Time</span>
+            <strong id="timer">0:00</strong>
+        </div>
+    </div>
+
+    <!-- ========== GAME BOARD (Cards will be added by JavaScript) ========== -->
+    <div class="game-board" id="gameBoard">
+        <!-- Cards generated by JavaScript -->
+    </div>
+
+    <!-- ========== RESTART BUTTON ========== -->
+    <button class="restart-btn" id="restartBtn">🔄 Restart Game</button>
+
+    <!-- ========== WIN MESSAGE MODAL ========== -->
+    <div class="win-overlay" id="winOverlay">
+        <div class="win-message">
+            <h2>🎉 You Won!</h2>
+            <p>Congratulations! You found all pairs!</p>
+            <div class="stats" id="finalStats">
+                <!-- Stats will be added by JavaScript -->
+            </div>
+            <button class="play-again-btn" id="playAgainBtn">Play Again 🎮</button>
+        </div>
+    </div>
+
+    <!-- ========== JAVASCRIPT ========== -->
+    <script>
+        // =====================================================
+        // STEP 1: Define the emojis for our cards
+        // We need 8 pairs, so 16 cards total (4x4 grid)
+        // =====================================================
+        const emojis = ['🐶', '🐱', '🐼', '🦊', '🦁', '🐸', '🐵', '🐔'];
+
+        // =====================================================
+        // STEP 2: Game State Variables
+        // These keep track of what's happening in the game
+        // =====================================================
+        let cards = [];              // Array to hold all card data
+        let flippedCards = [];       // Currently flipped cards (max 2)
+        let matchedPairs = 0;        // How many pairs found
+        let moves = 0;               // Total moves made
+        let gameStarted = false;     // Has the game started?
+        let timerInterval = null;    // Timer reference
+        let seconds = 0;             // Time elapsed
+        let canFlip = true;          // Can player flip cards? (prevents spam clicking)
+
+        // =====================================================
+        // STEP 3: Get DOM Elements
+        // =====================================================
+        const gameBoard = document.getElementById('gameBoard');
+        const movesDisplay = document.getElementById('moves');
+        const matchesDisplay = document.getElementById('matches');
+        const timerDisplay = document.getElementById('timer');
+        const restartBtn = document.getElementById('restartBtn');
+        const winOverlay = document.getElementById('winOverlay');
+        const playAgainBtn = document.getElementById('playAgainBtn');
+        const finalStats = document.getElementById('finalStats');
+
+        // =====================================================
+        // STEP 4: Shuffle Function (Fisher-Yates Algorithm)
+        // This randomly mixes up the array - VERY IMPORTANT!
+        // =====================================================
+        function shuffleArray(array) {
+            // Create a copy so we don't modify original
+            const shuffled = [...array];
+            
+            // Loop from end to beginning
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                // Pick a random index from 0 to i
+                const randomIndex = Math.floor(Math.random() * (i + 1));
+                
+                // Swap elements at i and randomIndex
+                [shuffled[i], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[i]];
+            }
+            
+            return shuffled;
+        }
+
+        // =====================================================
+        // STEP 5: Create Cards Array
+        // Duplicate emojis (for pairs) and shuffle them
+        // =====================================================
+        function createCards() {
+            // Double the emojis array to create pairs
+            // [🐶, 🐱, 🐼] becomes [🐶, 🐱, 🐼, 🐶, 🐱, 🐼]
+            const doubledEmojis = [...emojis, ...emojis];
+            
+            // Shuffle the doubled array
+            const shuffledEmojis = shuffleArray(doubledEmojis);
+            
+            // Create card objects with id and emoji
+            cards = shuffledEmojis.map((emoji, index) => ({
+                id: index,           // Unique identifier
+                emoji: emoji,        // The emoji to show
+                isFlipped: false,    // Is card face up?
+                isMatched: false     // Has card been matched?
+            }));
+        }
+
+        // =====================================================
+        // STEP 6: Render Cards to the DOM
+        // Create HTML elements for each card
+        // =====================================================
+        function renderCards() {
+            // Clear the game board first
+            gameBoard.innerHTML = '';
+            
+            // Loop through each card and create HTML
+            cards.forEach(card => {
+                // Create card container div
+                const cardElement = document.createElement('div');
+                cardElement.classList.add('card');
+                cardElement.dataset.id = card.id;  // Store card id in data attribute
+                
+                // Create front (emoji side)
+                const cardFront = document.createElement('div');
+                cardFront.classList.add('card-front');
+                cardFront.textContent = card.emoji;
+                
+                // Create back (question mark side)
+                const cardBack = document.createElement('div');
+                cardBack.classList.add('card-back');
+                cardBack.textContent = '❓';
+                
+                // Add front and back to card
+                cardElement.appendChild(cardFront);
+                cardElement.appendChild(cardBack);
+                
+                // Add click event listener to card
+                cardElement.addEventListener('click', () => handleCardClick(card.id));
+                
+                // Add card to game board
+                gameBoard.appendChild(cardElement);
+            });
+        }
+
+        // =====================================================
+        // STEP 7: Handle Card Click - THE MAIN GAME LOGIC!
+        // =====================================================
+        function handleCardClick(cardId) {
+            // Find the card data by id
+            const card = cards.find(c => c.id === cardId);
+            const cardElement = document.querySelector(`[data-id="${cardId}"]`);
+            
+            // GUARD CLAUSES - Don't do anything if:
+            // 1. Player can't flip (waiting for cards to flip back)
+            // 2. Card is already flipped
+            // 3. Card is already matched
+            // 4. Already have 2 cards flipped
+            if (!canFlip || card.isFlipped || card.isMatched || flippedCards.length >= 2) {
+                return;  // Exit the function early
+            }
+            
+            // Start timer on first click
+            if (!gameStarted) {
+                startTimer();
+                gameStarted = true;
+            }
+            
+            // Flip the card
+            card.isFlipped = true;
+            cardElement.classList.add('flipped');
+            
+            // Add to flipped cards array
+            flippedCards.push(card);
+            
+            // If we have 2 cards flipped, check for match
+            if (flippedCards.length === 2) {
+                moves++;  // Increment move counter
+                movesDisplay.textContent = moves;
+                
+                checkForMatch();
+            }
+        }
+
+        // =====================================================
+        // STEP 8: Check if Two Flipped Cards Match
+        // =====================================================
+        function checkForMatch() {
+            const [card1, card2] = flippedCards;  // Destructure the two cards
+            
+            if (card1.emoji === card2.emoji) {
+                // ✅ MATCH FOUND!
+                handleMatch(card1, card2);
+            } else {
+                // ❌ NO MATCH
+                handleNoMatch(card1, card2);
+            }
+        }
+
+        // =====================================================
+        // STEP 9: Handle Matching Cards
+        // =====================================================
+        function handleMatch(card1, card2) {
+            // Mark cards as matched
+            card1.isMatched = true;
+            card2.isMatched = true;
+            
+            // Get DOM elements
+            const cardElement1 = document.querySelector(`[data-id="${card1.id}"]`);
+            const cardElement2 = document.querySelector(`[data-id="${card2.id}"]`);
+            
+            // Add matched animation class
+            cardElement1.classList.add('matched');
+            cardElement2.classList.add('matched');
+            
+            // Update score
+            matchedPairs++;
+            matchesDisplay.textContent = `${matchedPairs} / 8`;
+            
+            // Clear flipped cards array
+            flippedCards = [];
+            
+            // Check if game is won (all 8 pairs found)
+            if (matchedPairs === 8) {
+                setTimeout(showWinMessage, 500);
+            }
+        }
+
+        // =====================================================
+        // STEP 10: Handle Non-Matching Cards
+        // =====================================================
+        function handleNoMatch(card1, card2) {
+            // Prevent clicking while cards flip back
+            canFlip = false;
+            
+            // Get DOM elements
+            const cardElement1 = document.querySelector(`[data-id="${card1.id}"]`);
+            const cardElement2 = document.querySelector(`[data-id="${card2.id}"]`);
+            
+            // Add shake animation
+            cardElement1.classList.add('shake');
+            cardElement2.classList.add('shake');
+            
+            // Wait 1 second, then flip cards back
+            setTimeout(() => {
+                // Remove flipped class (flip back)
+                cardElement1.classList.remove('flipped', 'shake');
+                cardElement2.classList.remove('flipped', 'shake');
+                
+                // Update card data
+                card1.isFlipped = false;
+                card2.isFlipped = false;
+                
+                // Clear flipped cards array
+                flippedCards = [];
+                
+                // Allow clicking again
+                canFlip = true;
+            }, 1000);
+        }
+
+        // =====================================================
+        // STEP 11: Timer Functions
+        // =====================================================
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                seconds++;
+                // Format time as M:SS
+                const minutes = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                timerDisplay.textContent = `${minutes}:${secs.toString().padStart(2, '0')}`;
+            }, 1000);  // Run every 1000ms (1 second)
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+        }
+
+        // =====================================================
+        // STEP 12: Show Win Message
+        // =====================================================
+        function showWinMessage() {
+            stopTimer();
+            
+            // Calculate final stats
+            const minutes = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            
+            finalStats.innerHTML = `
+                <p>⏱️ Time: ${minutes}:${secs.toString().padStart(2, '0')}</p>
+                <p>🎯 Moves: ${moves}</p>
+            `;
+            
+            // Show the modal
+            winOverlay.classList.add('active');
+        }
+
+        // =====================================================
+        // STEP 13: Restart Game Function
+        // =====================================================
+        function restartGame() {
+            // Reset all state variables
+            cards = [];
+            flippedCards = [];
+            matchedPairs = 0;
+            moves = 0;
+            gameStarted = false;
+            seconds = 0;
+            canFlip = true;
+            
+            // Stop and reset timer
+            stopTimer();
+            timerDisplay.textContent = '0:00';
+            
+            // Reset displays
+            movesDisplay.textContent = '0';
+            matchesDisplay.textContent = '0 / 8';
+            
+            // Hide win message
+            winOverlay.classList.remove('active');
+            
+            // Create new shuffled cards and render
+            createCards();
+            renderCards();
+        }
+
+        // =====================================================
+        // STEP 14: Event Listeners for Buttons
+        // =====================================================
+        restartBtn.addEventListener('click', restartGame);
+        playAgainBtn.addEventListener('click', restartGame);
+
+        // =====================================================
+        // STEP 15: Initialize Game on Page Load
+        // =====================================================
+        createCards();
+        renderCards();
+
+        // =====================================================
+        // 🎉 CONGRATULATIONS! You've built a Memory Game!
+        // 
+        // CONCEPTS YOU LEARNED:
+        // 1. Array manipulation (map, find, spread operator)
+        // 2. Fisher-Yates shuffle algorithm
+        // 3. DOM manipulation (createElement, classList)
+        // 4. Event handling (click events)
+        // 5. CSS 3D transforms (card flip animation)
+        // 6. Game state management
+        // 7. Timer with setInterval
+        // 8. Modals for win message
+        // 9. Guard clauses for clean code
+        // 10. Data attributes (dataset)
+        // =====================================================
+    </script>
+</body>
+</html>
